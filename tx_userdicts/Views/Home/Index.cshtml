@@ -1,0 +1,119 @@
+﻿@using TXTextControl.Web
+@using TXTextControl.Web.MVC
+
+@{
+    ViewBag.Title = "Loading and Saving User Dictionaries";
+}
+
+<h2>Loading and Saving User Dictionaries</h2>
+
+@Html.TXTextControl().TextControl().Render()
+
+<select id="availableDictionaries">
+
+</select>
+
+<button onclick="loadUserDictionary()">Load UserDictionary</button>
+<button onclick="saveUserDictionary()">Save UserDictionaries</button>
+
+<script>
+
+    // fill select element with available dictionaries
+    $(document).ready(function () {
+        TXTextControl.addEventListener("textControlLoaded", function () {
+            getUserDictionaryFilenames();
+        });
+    });
+
+    // get available dictionary names and add them to select element
+    function getUserDictionaryFilenames() {
+        var serviceURL = "/api/Dictionary/UserDictionaryFilenames/";
+
+        $.ajax({
+            type: "GET",
+            url: serviceURL,
+            contentType: 'application/json',
+            success: successFunc,
+            error: errorFunc
+        });
+
+        function successFunc(data, status) {
+            data.forEach(function (item) {
+                // append the options
+                $("#availableDictionaries").append("<option>" + item + "</option>");
+            });
+        }
+
+        function errorFunc() {
+            console.log("error");
+        }
+    }
+
+    // load a specific user dictionary
+    function loadUserDictionary() {
+
+        // call Web API endpoint to retrieve the dictionary
+        var serviceURL = "/api/Dictionary/LoadUserDictionary?filename="
+            + $("#availableDictionaries").val();
+
+        $.ajax({
+            type: "GET",
+            url: serviceURL,
+            contentType: 'application/json',
+            success: successFunc,
+            error: errorFunc
+        });
+
+        function successFunc(data, status) {
+            // enable spell checking
+            TXTextControl.isSpellCheckingEnabled = true;
+
+            // load user dictionary
+            TXTextControl.Proofing.loadUserDictionary(data.name, data.words, data.language);
+            alert("Dictionary " + data.name + " successfully loaded.");
+        }
+
+        function errorFunc() {
+            console.log("error");
+        }
+    }
+
+    // save all dictionaries
+    function saveUserDictionary() {
+        // get information about all user dictionaries
+        TXTextControl.Proofing.getUserDictionaryInfo(function (e) {
+
+            // loop through all dictionaries
+            e.forEach(function (item) {
+
+                // save the dictionary
+                TXTextControl.Proofing.saveUserDictionary(item.name, function (name, words) {
+                    // create a new dictionary JSON object
+                    var userDict = { language : item.language, name : name, words : words };
+
+                    // call the Web API and pass the dictionary object
+                    var serviceURL = "/api/Dictionary/SaveUserDictionary/";
+
+                    $.ajax({
+                        type: "POST",
+                        url: serviceURL,
+                        contentType: 'application/json',
+                        dataType: "json",
+                        data: JSON.stringify(userDict),
+                        success: successFunc,
+                        error: errorFunc
+                    });
+
+                    function successFunc(data, status) {
+                        alert(data);
+                    }
+
+                    function errorFunc() {
+                        console.log("error");
+                    }
+                });
+            });
+
+        })
+    }
+</script>
